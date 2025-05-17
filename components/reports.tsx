@@ -34,8 +34,8 @@ interface ReportsProps {
 export default function Reports({ tasks, resources, totalHours, resourceAvailability }: ReportsProps) {
   if (tasks.length === 0) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm border-gray-200">
+        <CardHeader className="bg-white rounded-t-lg">
           <CardTitle>Project Reports</CardTitle>
           <CardDescription>No tasks available to generate reports.</CardDescription>
         </CardHeader>
@@ -107,30 +107,30 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
   const totalDependencies = tasks.reduce((sum, task) => sum + (task.dependencies?.length || 0), 0)
 
   // COLORS
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
+  const COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"]
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm border-gray-200">
+        <CardHeader className="bg-white rounded-t-lg">
           <CardTitle>Project Summary</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-white pt-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="p-4 text-center">
-              <h3 className="text-sm font-medium text-muted-foreground">Total Tasks</h3>
+            <Card className="p-4 text-center bg-white shadow-sm border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500">Total Tasks</h3>
               <p className="text-2xl font-bold mt-2">{tasks.length}</p>
             </Card>
-            <Card className="p-4 text-center">
-              <h3 className="text-sm font-medium text-muted-foreground">Total Hours</h3>
+            <Card className="p-4 text-center bg-white shadow-sm border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500">Total Hours</h3>
               <p className="text-2xl font-bold mt-2">{totalHours}</p>
             </Card>
-            <Card className="p-4 text-center">
-              <h3 className="text-sm font-medium text-muted-foreground">Total Cost</h3>
+            <Card className="p-4 text-center bg-white shadow-sm border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500">Total Cost</h3>
               <p className="text-2xl font-bold mt-2">${totalCost}</p>
             </Card>
-            <Card className="p-4 text-center">
-              <h3 className="text-sm font-medium text-muted-foreground">Resources</h3>
+            <Card className="p-4 text-center bg-white shadow-sm border-gray-200">
+              <h3 className="text-sm font-medium text-gray-500">Resources</h3>
               <p className="text-2xl font-bold mt-2">{resources.length}</p>
             </Card>
           </div>
@@ -138,11 +138,11 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm border-gray-200">
+          <CardHeader className="bg-white rounded-t-lg">
             <CardTitle>Task Distribution by Size</CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] bg-white pt-4">
             <ChartContainer>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -167,11 +167,11 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm border-gray-200">
+          <CardHeader className="bg-white rounded-t-lg">
             <CardTitle>Resource Allocation</CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] bg-white pt-4">
             <ChartContainer>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={resourceUtilization} layout="vertical">
@@ -179,11 +179,11 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
                   <XAxis type="number" domain={[0, 100]} />
                   <YAxis type="category" dataKey="name" width={100} />
                   <Tooltip formatter={(value) => [`${value}%`, "Utilization"]} />
-                  <Bar dataKey="utilization" fill="#8884d8">
+                  <Bar dataKey="utilization" fill="#4F46E5">
                     {resourceUtilization.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={entry.utilization >= 100 ? "#ef4444" : entry.utilization >= 80 ? "#f59e0b" : "#22c55e"}
+                        fill={entry.utilization >= 100 ? "#EF4444" : entry.utilization >= 80 ? "#F59E0B" : "#10B981"}
                       />
                     ))}
                   </Bar>
@@ -195,11 +195,11 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm border-gray-200">
+          <CardHeader className="bg-white rounded-t-lg">
             <CardTitle>Upcoming Deadlines</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="bg-white pt-4">
             {upcomingDeadlines.length > 0 ? (
               <Table>
                 <TableHeader>
@@ -231,21 +231,21 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm border-gray-200">
+          <CardHeader className="bg-white rounded-t-lg">
             <CardTitle>Dependency Statistics</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="bg-white pt-4">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Card className="p-4 text-center">
-                  <h3 className="text-sm font-medium text-muted-foreground">Tasks with Dependencies</h3>
+                <Card className="p-4 text-center bg-white shadow-sm border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-500">Tasks with Dependencies</h3>
                   <p className="text-2xl font-bold mt-2">
                     {tasksWithDependencies} ({Math.round((tasksWithDependencies / tasks.length) * 100)}%)
                   </p>
                 </Card>
-                <Card className="p-4 text-center">
-                  <h3 className="text-sm font-medium text-muted-foreground">Total Dependencies</h3>
+                <Card className="p-4 text-center bg-white shadow-sm border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-500">Total Dependencies</h3>
                   <p className="text-2xl font-bold mt-2">{totalDependencies}</p>
                 </Card>
               </div>
@@ -278,11 +278,11 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm border-gray-200">
+        <CardHeader className="bg-white rounded-t-lg">
           <CardTitle>Hours by Resource</CardTitle>
         </CardHeader>
-        <CardContent className="h-[300px]">
+        <CardContent className="h-[300px] bg-white pt-4">
           <ChartContainer>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hoursResourceData}>
@@ -290,7 +290,7 @@ export default function Reports({ tasks, resources, totalHours, resourceAvailabi
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip formatter={(value) => [`${value} hours`, "Allocated"]} />
-                <Bar dataKey="hours" fill="#8884d8">
+                <Bar dataKey="hours" fill="#4F46E5">
                   {hoursResourceData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}

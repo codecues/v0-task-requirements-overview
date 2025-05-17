@@ -4,15 +4,6 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { Checkbox } from "@/components/ui/checkbox"
-import { cn } from "@/lib/utils"
 import type { Task, Resource } from "@/lib/task-utils"
 import { costMap, sizeMap } from "@/lib/config"
 
@@ -61,10 +52,10 @@ export default function TaskForm({ onAddTask, existingTasks, resources, editingT
 
   // Update cost when size changes
   useEffect(() => {
-    if (size && !editingTask) {
+    if (size) {
       setTaskCost(costMap[size as keyof typeof costMap])
     }
-  }, [size, editingTask])
+  }, [size])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,15 +81,21 @@ export default function TaskForm({ onAddTask, existingTasks, resources, editingT
       return
     }
 
+    // Calculate hours based on size
+    const hours = sizeMap[size as keyof typeof sizeMap] || 0
+
+    // Calculate cost based on size
+    const cost = taskCost !== undefined ? taskCost : costMap[size as keyof typeof costMap] || 0
+
     const newTask: Task = {
-      id: editingTask ? editingTask.id : "",
+      id: editingTask ? editingTask.id : Date.now().toString(),
       name: taskName,
       owner: owner || "Unassigned",
       size: size as "XS" | "S" | "M" | "L" | "XL",
       startDate: startDate,
       dueDate: dueDate,
-      cost: taskCost || costMap[size as keyof typeof costMap] || 0,
-      hours: sizeMap[size as keyof typeof sizeMap] || 0,
+      cost: cost,
+      hours: hours,
       dependencies: dependencies.length > 0 ? dependencies : undefined,
       resourceId: resourceId || undefined,
     }
@@ -119,8 +116,10 @@ export default function TaskForm({ onAddTask, existingTasks, resources, editingT
     }
   }
 
-  const toggleDependency = (taskId: string) => {
-    setDependencies((prev) => (prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]))
+  // Format date for input
+  const formatDateForInput = (date: Date | undefined) => {
+    if (!date) return ""
+    return format(date, "yyyy-MM-dd")
   }
 
   // Filter out the current task from available dependencies when editing
@@ -133,132 +132,133 @@ export default function TaskForm({ onAddTask, existingTasks, resources, editingT
       {error && <div className="text-red-500 text-sm">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="taskName">Task Name *</Label>
-          <Input
-            id="taskName"
+        <div>
+          <label className="block text-sm font-medium mb-1">Task Name*</label>
+          <input
+            type="text"
             value={taskName}
             onChange={(e) => setTaskName(e.target.value)}
             placeholder="Enter task name"
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="owner">Owner (Optional)</Label>
-          <Input id="owner" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Enter owner name" />
+        <div>
+          <label className="block text-sm font-medium mb-1">Owner (Optional)</label>
+          <input
+            type="text"
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
+            placeholder="Enter owner name"
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="size">T-Shirt Size *</Label>
-          <Select value={size} onValueChange={setSize}>
-            <SelectTrigger id="size">
-              <SelectValue placeholder="Select size" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="XS">XS (4 hours - ${costMap.XS})</SelectItem>
-              <SelectItem value="S">S (8 hours - ${costMap.S})</SelectItem>
-              <SelectItem value="M">M (16 hours - ${costMap.M})</SelectItem>
-              <SelectItem value="L">L (24 hours - ${costMap.L})</SelectItem>
-              <SelectItem value="XL">XL (32 hours - ${costMap.XL})</SelectItem>
-            </SelectContent>
-          </Select>
+        <div>
+          <label className="block text-sm font-medium mb-1">T-shirt Size*</label>
+          <select
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+          >
+            <option value="">Select size</option>
+            <option value="XS">XS (4 hours - ${costMap.XS})</option>
+            <option value="S">S (8 hours - ${costMap.S})</option>
+            <option value="M">M (16 hours - ${costMap.M})</option>
+            <option value="L">L (24 hours - ${costMap.L})</option>
+            <option value="XL">XL (32 hours - ${costMap.XL})</option>
+          </select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Start Date *</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "PPP") : "Select date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-            </PopoverContent>
-          </Popover>
+        <div>
+          <label className="block text-sm font-medium mb-1">Start Date*</label>
+          <input
+            type="date"
+            value={formatDateForInput(startDate)}
+            onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+          />
         </div>
 
-        <div className="space-y-2">
-          <Label>Due Date (Optional)</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn("w-full justify-start text-left font-normal", !dueDate && "text-muted-foreground")}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dueDate ? format(dueDate, "PPP") : "Auto-calculate"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus />
-            </PopoverContent>
-          </Popover>
+        <div>
+          <label className="block text-sm font-medium mb-1">Due Date (Optional)</label>
+          <input
+            type="date"
+            value={formatDateForInput(dueDate)}
+            onChange={(e) => setDueDate(e.target.value ? new Date(e.target.value) : undefined)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+          />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="resource">Assigned Resource</Label>
-        <Select value={resourceId} onValueChange={setResourceId}>
-          <SelectTrigger id="resource">
-            <SelectValue placeholder="Select resource" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {resources.map((resource) => (
-              <SelectItem key={resource.id} value={resource.id}>
-                {resource.name} ({resource.capacity} hrs/week)
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div>
+        <label className="block text-sm font-medium mb-1">Assigned Resource</label>
+        <select
+          value={resourceId}
+          onChange={(e) => setResourceId(e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+        >
+          <option value="">Select resource</option>
+          {resources.map((resource) => (
+            <option key={resource.id} value={resource.id}>
+              {resource.name} ({resource.capacity} hrs/week)
+            </option>
+          ))}
+        </select>
       </div>
 
       {availableDependencyTasks.length > 0 && (
-        <div className="space-y-2">
-          <Label>Dependencies (Optional)</Label>
-          <div className="border rounded-md p-4 max-h-40 overflow-y-auto">
+        <div>
+          <label className="block text-sm font-medium mb-1">Dependencies</label>
+          <select
+            multiple
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+            value={dependencies}
+            onChange={(e) => {
+              const values = Array.from(e.target.selectedOptions, (option) => option.value)
+              setDependencies(values)
+            }}
+          >
             {availableDependencyTasks.map((task) => (
-              <div key={task.id} className="flex items-center space-x-2 py-1">
-                <Checkbox
-                  id={`dependency-${task.id}`}
-                  checked={dependencies.includes(task.id)}
-                  onCheckedChange={() => toggleDependency(task.id)}
-                />
-                <Label htmlFor={`dependency-${task.id}`} className="cursor-pointer text-sm">
-                  {task.name} ({task.size})
-                </Label>
-              </div>
+              <option key={task.id} value={task.id}>
+                {task.name} ({task.size})
+              </option>
             ))}
-          </div>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple tasks</p>
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="cost">Cost (${taskCost || 0})</Label>
-        <Input
-          id="cost"
+      <div>
+        <label className="block text-sm font-medium mb-1">Cost (${taskCost || 0})</label>
+        <input
           type="number"
           value={taskCost || ""}
           onChange={(e) => setTaskCost(Number(e.target.value))}
           placeholder="Custom cost (optional)"
+          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
         />
-        <p className="text-xs text-muted-foreground">Default cost based on size will be used if left empty</p>
+        <p className="text-xs text-gray-500 mt-1">Default cost based on size will be used if left empty</p>
       </div>
 
-      <div className="flex justify-end space-x-2">
+      <div className="flex space-x-3">
+        <button
+          type="submit"
+          className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 active:bg-primary-800 transition-colors"
+        >
+          {editingTask ? "Update Task" : "Add Task"}
+        </button>
         {editingTask && (
-          <Button type="button" variant="outline" onClick={onCancelEdit}>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          >
             Cancel
-          </Button>
+          </button>
         )}
-        <Button type="submit">{editingTask ? "Update Task" : "Add Task"}</Button>
       </div>
     </form>
   )

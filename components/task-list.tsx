@@ -1,9 +1,6 @@
 "use client"
 
 import { format } from "date-fns"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Trash2, Edit, Link } from "lucide-react"
 import type { Task, Resource } from "@/lib/task-utils"
 import { sizeMap } from "@/lib/config"
 
@@ -21,7 +18,7 @@ export default function TaskList({ tasks, onDeleteTask, onEditTask, resources }:
 
   // Function to get dependency names
   const getDependencyNames = (dependencyIds?: string[]) => {
-    if (!dependencyIds || dependencyIds.length === 0) return "None"
+    if (!dependencyIds || dependencyIds.length === 0) return "-"
 
     return dependencyIds.map((id) => tasks.find((task) => task.id === id)?.name || "Unknown").join(", ")
   }
@@ -35,56 +32,60 @@ export default function TaskList({ tasks, onDeleteTask, onEditTask, resources }:
 
   return (
     <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Task Name</TableHead>
-            <TableHead>Owner</TableHead>
-            <TableHead>Resource</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Hours</TableHead>
-            <TableHead>Cost</TableHead>
-            <TableHead>Start Date</TableHead>
-            <TableHead>Due Date</TableHead>
-            <TableHead>Dependencies</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="p-3 text-left border-b">Task</th>
+            <th className="p-3 text-left border-b">Owner</th>
+            <th className="p-3 text-left border-b">Size</th>
+            <th className="p-3 text-left border-b">Start Date</th>
+            <th className="p-3 text-left border-b">ETA</th>
+            <th className="p-3 text-left border-b">Dependencies</th>
+            <th className="p-3 text-left border-b">Cost</th>
+            <th className="p-3 text-left border-b">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
           {tasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell className="font-medium">{task.name}</TableCell>
-              <TableCell>{task.owner}</TableCell>
-              <TableCell>{getResourceName(task.resourceId)}</TableCell>
-              <TableCell>{task.size}</TableCell>
-              <TableCell>{sizeMap[task.size]} hrs</TableCell>
-              <TableCell>${task.cost}</TableCell>
-              <TableCell>{format(new Date(task.startDate), "MMM d, yyyy")}</TableCell>
-              <TableCell>{task.dueDate ? format(new Date(task.dueDate), "MMM d, yyyy") : "N/A"}</TableCell>
-              <TableCell>
+            <tr key={task.id} className="hover:bg-gray-50 transition-colors">
+              <td className="p-3 border-b">{task.name}</td>
+              <td className="p-3 border-b">{task.owner}</td>
+              <td className="p-3 border-b">
+                {task.size} ({sizeMap[task.size]}h)
+              </td>
+              <td className="p-3 border-b">{format(new Date(task.startDate), "yyyy-MM-dd")}</td>
+              <td className="p-3 border-b">{task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A"}</td>
+              <td className="p-3 border-b">
                 {task.dependencies && task.dependencies.length > 0 ? (
                   <div className="flex items-center">
-                    <Link className="h-4 w-4 mr-1 text-blue-500" />
-                    <span className="text-sm">{getDependencyNames(task.dependencies)}</span>
+                    <span className="mr-1">🔗</span>
+                    <span>{getDependencyNames(task.dependencies)}</span>
                   </div>
                 ) : (
-                  "None"
+                  "-"
                 )}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => onEditTask(task.id)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => onDeleteTask(task.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              </td>
+              <td className="p-3 border-b">${task.cost}</td>
+              <td className="p-3 border-b">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => onEditTask(task.id)}
+                    className="p-1.5 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => onDeleteTask(task.id)}
+                    className="p-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
+                  >
+                    🗑️
+                  </button>
                 </div>
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           ))}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
   )
 }

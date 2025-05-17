@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import TaskForm from "./task-form"
 import TaskList from "./task-list"
 import GanttChart from "./gantt-chart"
@@ -10,7 +8,6 @@ import ResourceForecast from "./resource-forecast"
 import CostConfig from "./cost-config"
 import ResourceManager from "./resource-manager"
 import ResourceAvailability from "./resource-availability"
-import Reports from "./reports"
 import {
   type Task,
   type Resource,
@@ -20,8 +17,8 @@ import {
   calculateResourceAvailability,
   calculateTaskCapacity,
 } from "@/lib/task-utils"
-import { holidays, costMap as defaultCostMap, sizeMap } from "@/lib/config"
-import { addMonths } from "date-fns"
+import { holidays, costMap as defaultCostMap } from "@/lib/config"
+import { addWeeks } from "date-fns"
 
 export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -68,12 +65,6 @@ export default function TaskManager() {
     if (!task.dueDate) {
       task.dueDate = calculateETA(task.startDate, task.size, holidays, tasks, task.dependencies)
     }
-
-    // Calculate cost based on size
-    task.cost = task.cost || costMap[task.size] || 0
-
-    // Calculate hours based on size
-    task.hours = task.hours || sizeMap[task.size] || 0
 
     // Generate a unique ID if not provided (for new tasks)
     if (!task.id) {
@@ -158,29 +149,71 @@ export default function TaskManager() {
   const taskCapacity = calculateTaskCapacity(tasks)
   const totalHours = calculateTotalHours(tasks)
 
-  // Calculate resource availability for the next 3 months
+  // Calculate resource availability for the next 3 weeks
   const today = new Date()
-  const threeMonthsLater = addMonths(today, 3)
-  const resourceAvailability = calculateResourceAvailability(tasks, resources, today, threeMonthsLater)
+  const threeWeeksLater = addWeeks(today, 3)
+  const resourceAvailability = calculateResourceAvailability(tasks, resources, today, threeWeeksLater)
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
-          <TabsTrigger value="resources">Resources</TabsTrigger>
-          <TabsTrigger value="availability">Availability</TabsTrigger>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-        </TabsList>
+    <div>
+      <div className="flex mb-6 border-b border-gray-200">
+        <button
+          className={`px-4 py-3 font-medium border-b-2 ${
+            activeTab === "tasks"
+              ? "border-primary-500 text-primary-700"
+              : "border-transparent hover:border-primary-300 hover:text-primary-600"
+          } transition-colors`}
+          onClick={() => setActiveTab("tasks")}
+        >
+          Tasks
+        </button>
+        <button
+          className={`px-4 py-3 font-medium border-b-2 ${
+            activeTab === "resources"
+              ? "border-primary-500 text-primary-700"
+              : "border-transparent hover:border-primary-300 hover:text-primary-600"
+          } transition-colors`}
+          onClick={() => setActiveTab("resources")}
+        >
+          Resources
+        </button>
+        <button
+          className={`px-4 py-3 font-medium border-b-2 ${
+            activeTab === "availability"
+              ? "border-primary-500 text-primary-700"
+              : "border-transparent hover:border-primary-300 hover:text-primary-600"
+          } transition-colors`}
+          onClick={() => setActiveTab("availability")}
+        >
+          Availability
+        </button>
+        <button
+          className={`px-4 py-3 font-medium border-b-2 ${
+            activeTab === "gantt"
+              ? "border-primary-500 text-primary-700"
+              : "border-transparent hover:border-primary-300 hover:text-primary-600"
+          } transition-colors`}
+          onClick={() => setActiveTab("gantt")}
+        >
+          Gantt Chart
+        </button>
+        <button
+          className={`px-4 py-3 font-medium border-b-2 ${
+            activeTab === "config"
+              ? "border-primary-500 text-primary-700"
+              : "border-transparent hover:border-primary-300 hover:text-primary-600"
+          } transition-colors`}
+          onClick={() => setActiveTab("config")}
+        >
+          Configuration
+        </button>
+      </div>
 
-        <TabsContent value="tasks" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{editingTask ? "Edit Task" : "Add New Task"}</CardTitle>
-            </CardHeader>
-            <CardContent>
+      {activeTab === "tasks" && (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-gray-50 p-5 rounded-xl shadow-sm">
+              <h2 className="text-xl font-semibold mb-4">{editingTask ? "Edit Task" : "Task Entry Form"}</h2>
               <TaskForm
                 onAddTask={addTask}
                 existingTasks={tasks}
@@ -188,71 +221,49 @@ export default function TaskManager() {
                 editingTask={editingTask}
                 onCancelEdit={cancelEdit}
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Task List</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TaskList tasks={tasks} onDeleteTask={deleteTask} onEditTask={editTask} resources={resources} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="gantt">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gantt Chart</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GanttChart tasks={tasks} resources={resources} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="resources">
-          <ResourceManager
-            resources={resources}
-            onAddResource={addResource}
-            onUpdateResource={updateResource}
-            onDeleteResource={deleteResource}
-          />
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Resource Forecast</CardTitle>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="bg-gray-50 p-5 rounded-xl shadow-sm">
+              <h2 className="text-xl font-semibold mb-4">Resource Forecast</h2>
               <ResourceForecast tasks={tasks} forecast={resourceForecast} totalHours={totalHours} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </div>
 
-        <TabsContent value="availability">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resource Availability</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResourceAvailability resources={resources} availability={resourceAvailability} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Task List</h2>
+            <TaskList tasks={tasks} onDeleteTask={deleteTask} onEditTask={editTask} resources={resources} />
+          </div>
+        </div>
+      )}
 
-        <TabsContent value="config">
+      {activeTab === "gantt" && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Gantt Chart</h2>
+          <GanttChart tasks={tasks} resources={resources} />
+        </div>
+      )}
+
+      {activeTab === "resources" && (
+        <ResourceManager
+          resources={resources}
+          onAddResource={addResource}
+          onUpdateResource={updateResource}
+          onDeleteResource={deleteResource}
+        />
+      )}
+
+      {activeTab === "availability" && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Resource Availability</h2>
+          <ResourceAvailability resources={resources} availability={resourceAvailability} />
+        </div>
+      )}
+
+      {activeTab === "config" && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Configuration</h2>
           <CostConfig onUpdateCosts={updateCosts} />
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <Reports
-            tasks={tasks}
-            resources={resources}
-            totalHours={totalHours}
-            resourceAvailability={resourceAvailability}
-          />
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   )
 }

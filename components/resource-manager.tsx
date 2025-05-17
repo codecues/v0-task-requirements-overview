@@ -3,12 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2, Edit } from "lucide-react"
 import type { Resource } from "@/lib/task-utils"
 
 interface ResourceManagerProps {
@@ -53,7 +47,7 @@ export default function ResourceManager({
     } else {
       // Add new resource
       onAddResource({
-        id: "",
+        id: `resource-${Date.now()}`,
         name,
         capacity,
       })
@@ -80,88 +74,102 @@ export default function ResourceManager({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingResource ? "Edit Resource" : "Add Resource"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="text-red-500 text-sm">{error}</div>}
+      <div className="bg-gray-50 p-5 rounded-xl shadow-sm">
+        <h2 className="text-xl font-semibold mb-4">{editingResource ? "Edit Resource" : "Add Resource"}</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="text-red-500 text-sm">{error}</div>}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Resource Name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter resource name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity (hours/week)</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={capacity}
-                  onChange={(e) => setCapacity(Number(e.target.value))}
-                  min="1"
-                  max="168"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Resource Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter resource name"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+              />
             </div>
 
-            <div className="flex justify-end space-x-2">
-              {editingResource && (
-                <Button type="button" variant="outline" onClick={handleCancel}>
-                  Cancel
-                </Button>
-              )}
-              <Button type="submit">{editingResource ? "Update Resource" : "Add Resource"}</Button>
+            <div>
+              <label className="block text-sm font-medium mb-1">Capacity (hours/week)</label>
+              <input
+                type="number"
+                value={capacity}
+                onChange={(e) => setCapacity(Number(e.target.value))}
+                min="1"
+                max="168"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all"
+              />
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Resource List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {resources.length === 0 ? (
-            <div className="text-center py-4">No resources added yet.</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Capacity (hours/week)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {resources.map((resource) => (
-                  <TableRow key={resource.id}>
-                    <TableCell className="font-medium">{resource.name}</TableCell>
-                    <TableCell>{resource.capacity} hrs</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(resource)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => onDeleteResource(resource.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+          <div className="flex space-x-3">
+            <button
+              type="submit"
+              className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 active:bg-primary-800 transition-colors"
+            >
+              {editingResource ? "Update Resource" : "Add Resource"}
+            </button>
+            {editingResource && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Resource List</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-3 text-left border-b">Name</th>
+                <th className="p-3 text-left border-b">Capacity (hours/week)</th>
+                <th className="p-3 text-left border-b">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resources.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-3 text-center">
+                    No resources added yet.
+                  </td>
+                </tr>
+              ) : (
+                resources.map((resource) => (
+                  <tr key={resource.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-3 border-b font-medium">{resource.name}</td>
+                    <td className="p-3 border-b">{resource.capacity} hrs</td>
+                    <td className="p-3 border-b">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(resource)}
+                          className="p-1.5 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => onDeleteResource(resource.id)}
+                          className="p-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
+                        >
+                          🗑️
+                        </button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

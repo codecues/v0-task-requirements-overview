@@ -1,10 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { format, differenceInDays, addDays } from "date-fns"
+import { format, differenceInDays, addDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns"
 import type { Task, Resource } from "@/lib/task-utils"
-import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface GanttChartProps {
   tasks: Task[]
@@ -12,27 +10,32 @@ interface GanttChartProps {
 }
 
 export default function GanttChart({ tasks, resources }: GanttChartProps) {
-  const [viewRange, setViewRange] = useState<number>(30) // Days to show
-  const [startViewDate, setStartViewDate] = useState<Date>(new Date())
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week")
+  const [currentDate, setCurrentDate] = useState<Date>(new Date())
 
   if (tasks.length === 0) {
     return <div className="text-center py-4">No tasks to display in the Gantt chart.</div>
   }
 
-  // Find the earliest start date and latest end date
-  const earliestDate = new Date(Math.min(...tasks.map((task) => new Date(task.startDate).getTime())))
-  const latestDate = new Date(Math.max(...tasks.map((task) => new Date(task.dueDate || task.startDate).getTime())))
-
-  // Set the view range to include all tasks if not already set
-  if (differenceInDays(latestDate, earliestDate) > viewRange) {
-    setViewRange(differenceInDays(latestDate, earliestDate) + 7) // Add a week buffer
+  // Get the date range to display
+  const getDateRange = () => {
+    if (viewMode === "day") {
+      return [currentDate]
+    } else if (viewMode === "week") {
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 }) // Start on Monday
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 }) // End on Sunday
+      return eachDayOfInterval({ start, end })
+    } else {
+      // Month view - show 30 days
+      const dates = []
+      for (let i = 0; i < 30; i++) {
+        dates.push(addDays(currentDate, i))
+      }
+      return dates
+    }
   }
 
-  // Generate date labels for the x-axis
-  const dateLabels = Array.from({ length: viewRange }, (_, i) => {
-    const date = addDays(startViewDate, i)
-    return format(date, "MMM d")
-  })
+  const dateRange = getDateRange()
 
   // Function to get resource name
   const getResourceName = (resourceId?: string) => {
@@ -41,50 +44,31 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
     return resource ? resource.name : ""
   }
 
-  // Prepare data for the chart
-  const chartData = tasks.map((task, index) => {
-    const start = new Date(task.startDate)
-    const end = new Date(task.dueDate || task.startDate)
-
-    // Calculate position and width for the Gantt bar
-    const startOffset = Math.max(0, differenceInDays(start, startViewDate))
-    const duration = differenceInDays(end, start) + 1 // +1 to include the end day
-
-    return {
-      id: task.id,
-      name: task.name,
-      owner: task.owner,
-      size: task.size,
-      start: start,
-      end: end,
-      startOffset: startOffset,
-      duration: duration,
-      // For proper positioning in the chart
-      index: index, // Use index for Y-axis positioning
-      dependencies: task.dependencies,
-      resourceId: task.resourceId,
-      resourceName: getResourceName(task.resourceId),
-    }
-  })
-
-  // Move view range backward
+  // Move backward
   const moveBackward = () => {
-    setStartViewDate(addDays(startViewDate, -viewRange / 2))
+    if (viewMode === "day") {
+      setCurrentDate(addDays(currentDate, -1))
+    } else if (viewMode === "week") {
+      setCurrentDate(addDays(currentDate, -7))
+    } else {
+      setCurrentDate(addDays(currentDate, -30))
+    }
   }
 
-  // Move view range forward
+  // Move forward
   const moveForward = () => {
-    setStartViewDate(addDays(startViewDate, viewRange / 2))
+    if (viewMode === "day") {
+      setCurrentDate(addDays(currentDate, 1))
+    } else if (viewMode === "week") {
+      setCurrentDate(addDays(currentDate, 7))
+    } else {
+      setCurrentDate(addDays(currentDate, 30))
+    }
   }
 
-  // Reset view to today
-  const resetView = () => {
-    setStartViewDate(new Date())
-  }
-
-  // Change view range
-  const changeViewRange = (days: number) => {
-    setViewRange(days)
+  // Reset to today
+  const resetToToday = () => {
+    setCurrentDate(new Date())
   }
 
   // Get color based on resource
@@ -108,131 +92,143 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
     return colors[index % colors.length]
   }
 
-  // Custom rendering for the Gantt chart
-  const renderCustomizedGanttChart = () => {
-    return (
-      <div className="relative h-[500px] w-full border rounded-md">
-        <div className="absolute top-0 left-0 w-full h-full">
-          {/* Date headers */}
-          <div className="flex border-b h-10 bg-muted/50">
-            <div className="w-[200px] border-r bg-background flex items-center px-2 font-medium">Task / Resource</div>
-            <div className="flex-1 flex">
-              {dateLabels.map((label, i) => (
-                <div key={i} className="flex-1 text-center text-xs p-1 border-r flex items-center justify-center">
-                  {label}
-                </div>
-              ))}
-            </div>
-          </div>
+  // Prepare data for the chart
+  const chartData = tasks.map((task) => {
+    const start = new Date(task.startDate)
+    const end = new Date(task.dueDate || task.startDate)
 
-          {/* Task rows */}
-          <div className="overflow-y-auto h-[calc(100%-40px)]">
-            {chartData.map((task, taskIndex) => (
-              <div key={task.id} className="flex relative h-14 border-b hover:bg-muted/20">
-                {/* Task name and resource */}
-                <div className="absolute left-0 top-0 w-[200px] h-full flex flex-col justify-center px-2 bg-background z-10 border-r">
-                  <span className="truncate text-sm font-medium">{task.name}</span>
-                  {task.resourceName && (
-                    <span className="truncate text-xs text-muted-foreground">{task.resourceName}</span>
-                  )}
-                </div>
+    return {
+      id: task.id,
+      name: task.name,
+      owner: task.owner,
+      size: task.size,
+      start: start,
+      end: end,
+      dependencies: task.dependencies,
+      resourceId: task.resourceId,
+      resourceName: getResourceName(task.resourceId),
+    }
+  })
 
-                {/* Task bar container */}
-                <div className="ml-[200px] w-[calc(100%-200px)] relative">
-                  {/* Task bar */}
-                  <div
-                    className={`absolute h-8 top-3 ${getTaskColor(task.resourceId)} rounded-sm`}
-                    style={{
-                      left: `${(task.startOffset / viewRange) * 100}%`,
-                      width: `${(task.duration / viewRange) * 100}%`,
-                    }}
-                  >
-                    <div className="h-full px-2 flex items-center text-white text-xs truncate">
-                      {task.name} ({format(task.start, "MMM d")} - {format(task.end, "MMM d")})
-                    </div>
-                  </div>
+  // Calculate task position and width in the Gantt chart
+  const getTaskPosition = (task: (typeof chartData)[0], dateRange: Date[]) => {
+    const startDate = dateRange[0]
+    const endDate = dateRange[dateRange.length - 1]
 
-                  {/* Dependency arrows */}
-                  {task.dependencies?.map((depId) => {
-                    const dependencyTask = chartData.find((t) => t.id === depId)
-                    if (!dependencyTask) return null
+    // If task is outside the visible range
+    if (task.end < startDate || task.start > endDate) {
+      return { left: 0, width: 0, visible: false }
+    }
 
-                    // Calculate positions for the dependency arrow
-                    const depEndOffset = ((dependencyTask.startOffset + dependencyTask.duration) / viewRange) * 100
-                    const taskStartOffset = (task.startOffset / viewRange) * 100
-                    const depTaskIndex = chartData.findIndex((t) => t.id === depId)
+    // Calculate position
+    const rangeWidth = differenceInDays(endDate, startDate) + 1
+    const taskStart = Math.max(0, differenceInDays(task.start, startDate))
+    const taskEnd = Math.min(rangeWidth - 1, differenceInDays(task.end, startDate))
+    const taskWidth = taskEnd - taskStart + 1
 
-                    // Draw a line from the end of the dependency to the start of this task
-                    return (
-                      <svg
-                        key={`${depId}-${task.id}`}
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                        style={{ zIndex: 5 }}
-                      >
-                        <defs>
-                          <marker
-                            id={`arrowhead-${depId}-${task.id}`}
-                            markerWidth="10"
-                            markerHeight="7"
-                            refX="0"
-                            refY="3.5"
-                            orient="auto"
-                          >
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#444" />
-                          </marker>
-                        </defs>
-                        <path
-                          d={`M ${depEndOffset}% ${depTaskIndex * 14 + 7} 
-                           L ${depEndOffset + 2}% ${depTaskIndex * 14 + 7} 
-                           L ${depEndOffset + 2}% ${(depTaskIndex * 14 + 7 + taskIndex * 14 + 7) / 2} 
-                           L ${taskStartOffset - 2}% ${(depTaskIndex * 14 + 7 + taskIndex * 14 + 7) / 2} 
-                           L ${taskStartOffset - 2}% ${taskIndex * 14 + 7} 
-                           L ${taskStartOffset}% ${taskIndex * 14 + 7}`}
-                          stroke="#444"
-                          strokeWidth="2"
-                          fill="none"
-                          markerEnd={`url(#arrowhead-${depId}-${task.id})`}
-                        />
-                      </svg>
-                    )
-                  })}
-                </div>
+    const left = (taskStart / rangeWidth) * 100
+    const width = (taskWidth / rangeWidth) * 100
+
+    return { left: `${left}%`, width: `${width}%`, visible: true }
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+      <div className="flex justify-between mb-4">
+        <div className="flex space-x-2">
+          <button className="p-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors" onClick={moveBackward}>
+            <span>←</span>
+          </button>
+          <button className="p-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors" onClick={resetToToday}>
+            <span>Today</span>
+          </button>
+          <button className="p-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors" onClick={moveForward}>
+            <span>→</span>
+          </button>
+        </div>
+        <div className="flex space-x-2">
+          <button
+            className={`px-3 py-1 ${
+              viewMode === "day" ? "bg-primary-100 text-primary-700" : "bg-gray-100"
+            } rounded hover:bg-gray-200 transition-colors text-sm`}
+            onClick={() => setViewMode("day")}
+          >
+            Day
+          </button>
+          <button
+            className={`px-3 py-1 ${
+              viewMode === "week" ? "bg-primary-100 text-primary-700" : "bg-gray-100"
+            } rounded hover:bg-gray-200 transition-colors text-sm`}
+            onClick={() => setViewMode("week")}
+          >
+            Week
+          </button>
+          <button
+            className={`px-3 py-1 ${
+              viewMode === "month" ? "bg-primary-100 text-primary-700" : "bg-gray-100"
+            } rounded hover:bg-gray-200 transition-colors text-sm`}
+            onClick={() => setViewMode("month")}
+          >
+            Month
+          </button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <div className="flex border-b border-gray-200 pb-2">
+          <div className="w-[180px] font-medium">Task</div>
+          <div className="flex-1 flex">
+            {dateRange.map((date, index) => (
+              <div key={index} className={`flex-1 text-center text-sm ${index % 2 === 0 ? "bg-gray-50" : ""}`}>
+                {format(date, "d MMM")}
               </div>
             ))}
           </div>
         </div>
-      </div>
-    )
-  }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="space-x-2">
-          <Button variant="outline" size="sm" onClick={() => changeViewRange(14)}>
-            2 Weeks
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => changeViewRange(30)}>
-            1 Month
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => changeViewRange(90)}>
-            3 Months
-          </Button>
-        </div>
-        <div className="space-x-2">
-          <Button variant="outline" size="icon" onClick={moveBackward}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={resetView}>
-            Today
-          </Button>
-          <Button variant="outline" size="icon" onClick={moveForward}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <div className="mt-4 space-y-4">
+          {chartData.map((task) => {
+            const position = getTaskPosition(task, dateRange)
+            if (!position.visible) return null
+
+            return (
+              <div key={task.id} className="flex items-center">
+                <div className="w-[180px] pr-4 font-medium truncate">{task.name}</div>
+                <div className="flex-1 h-8 relative">
+                  <div
+                    className={`absolute top-1 ${getTaskColor(task.resourceId)} rounded flex items-center justify-center text-white text-xs`}
+                    style={{ left: position.left, width: position.width }}
+                  >
+                    {task.resourceName ? `${task.resourceName.split(" ")[0]} (${task.size})` : task.size}
+                  </div>
+
+                  {/* Dependency arrows - simplified to avoid SVG issues */}
+                  {task.dependencies?.map((depId) => {
+                    const dependencyTask = chartData.find((t) => t.id === depId)
+                    if (!dependencyTask) return null
+
+                    const depPosition = getTaskPosition(dependencyTask, dateRange)
+                    if (!depPosition.visible) return null
+
+                    return (
+                      <div
+                        key={`${depId}-${task.id}`}
+                        className="absolute border-t-2 border-dashed border-blue-500"
+                        style={{
+                          top: "50%",
+                          left: depPosition.left,
+                          width: `calc(${position.left} - ${depPosition.left})`,
+                          height: "1px",
+                        }}
+                      ></div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
-
-      {renderCustomizedGanttChart()}
     </div>
   )
 }
