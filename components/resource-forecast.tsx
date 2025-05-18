@@ -1,6 +1,6 @@
 "use client"
 
-import type { Task } from "@/lib/task-utils"
+import type { Task, Resource } from "@/lib/task-utils"
 import { sizeMap } from "@/lib/config"
 
 interface ResourceForecastProps {
@@ -11,9 +11,10 @@ interface ResourceForecastProps {
     totalEffort: number
   }[]
   totalHours: number
+  resources: Resource[] // Add resources prop
 }
 
-export default function ResourceForecast({ tasks, forecast, totalHours }: ResourceForecastProps) {
+export default function ResourceForecast({ tasks, forecast, totalHours, resources }: ResourceForecastProps) {
   if (tasks.length === 0) {
     return <div className="text-center py-4">No tasks to forecast resources for.</div>
   }
@@ -22,7 +23,8 @@ export default function ResourceForecast({ tasks, forecast, totalHours }: Resour
 
   // Calculate available capacity for different task sizes
   const calculateAvailableCapacity = () => {
-    const totalCapacity = 120 // Example: 3 resources with 40 hours each
+    // Calculate total capacity from actual resources
+    const totalCapacity = resources.reduce((sum, resource) => sum + resource.capacity, 0)
     const remainingCapacity = Math.max(0, totalCapacity - totalHours)
 
     return {
@@ -31,44 +33,75 @@ export default function ResourceForecast({ tasks, forecast, totalHours }: Resour
       M: Math.floor(remainingCapacity / sizeMap.M),
       L: Math.floor(remainingCapacity / sizeMap.L),
       XL: Math.floor(remainingCapacity / sizeMap.XL),
+      total: remainingCapacity,
     }
   }
 
   const capacity = calculateAvailableCapacity()
 
-  // Mock resource utilization data
-  const resourceUtilization = [
-    { name: "Sarah Johnson", hours: 32, capacity: 40, utilization: 80 },
-    { name: "Mike Chen", hours: 24, capacity: 40, utilization: 60 },
-    { name: "Alex Rodriguez", hours: 38, capacity: 40, utilization: 95 },
-  ]
+  // Calculate resource utilization from actual tasks and resources
+  const calculateResourceUtilization = () => {
+    const utilization = resources.map((resource) => {
+      // Get all tasks assigned to this resource
+      const resourceTasks = tasks.filter((task) => task.resourceId === resource.id)
+
+      // Calculate total hours assigned to this resource
+      const assignedHours = resourceTasks.reduce((sum, task) => sum + (task.hours || 0), 0)
+
+      // Calculate utilization percentage
+      const utilizationPercentage = Math.min(100, Math.round((assignedHours / resource.capacity) * 100))
+
+      return {
+        name: resource.name,
+        hours: assignedHours,
+        capacity: resource.capacity,
+        utilization: utilizationPercentage,
+      }
+    })
+
+    return utilization
+  }
+
+  let resourceUtilization = []
+  try {
+    resourceUtilization = calculateResourceUtilization()
+  } catch (error) {
+    console.error("Error calculating resource utilization:", error)
+    resourceUtilization = []
+  }
 
   return (
     <div>
-      <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-medium">Next 3 Weeks</span>
-          <span className="text-sm text-gray-500">Hours / Capacity</span>
-        </div>
-        <div className="space-y-4">
-          {resourceUtilization.map((resource, index) => (
-            <div key={index}>
-              <div className="flex justify-between text-sm mb-1">
-                <span>{resource.name}</span>
-                <span>
-                  {resource.hours}/{resource.capacity}
-                </span>
+      {resources.length > 0 ? (
+        <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium">Resource Utilization</span>
+            <span className="text-sm text-gray-500">Hours / Capacity</span>
+          </div>
+          <div className="space-y-4">
+            {resourceUtilization.map((resource, index) => (
+              <div key={index}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>{resource.name}</span>
+                  <span>
+                    {resource.hours}/{resource.capacity}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`${resource.utilization >= 90 ? "bg-red-500" : "bg-primary-500"} h-2 rounded-full`}
+                    style={{ width: `${resource.utilization}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={`${resource.utilization >= 90 ? "bg-red-500" : "bg-primary-500"} h-2 rounded-full`}
-                  style={{ width: `${resource.utilization}%` }}
-                ></div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white p-4 rounded-lg shadow-sm mb-4 text-center text-gray-500">
+          No resources added yet. Add resources to see utilization.
+        </div>
+      )}
 
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <h3 className="font-medium mb-3">Available Capacity</h3>
@@ -102,8 +135,8 @@ export default function ResourceForecast({ tasks, forecast, totalHours }: Resour
             <div className="text-xs">XL Tasks</div>
           </div>
           <div className="bg-primary-50 p-2 rounded border border-primary-100">
-            <div className="text-primary-600 font-bold text-lg">{totalHours}</div>
-            <div className="text-xs">Hrs Total</div>
+            <div className="text-primary-600 font-bold text-lg">{capacity.total}</div>
+            <div className="text-xs">Hrs Available</div>
           </div>
         </div>
       </div>

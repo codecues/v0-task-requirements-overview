@@ -129,7 +129,68 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
     const left = (taskStart / rangeWidth) * 100
     const width = (taskWidth / rangeWidth) * 100
 
-    return { left: `${left}%`, width: `${width}%`, visible: true }
+    return { left: `${left}%`, width: `${width}%`, visible: true, startPos: taskStart, endPos: taskEnd }
+  }
+
+  // Function to export Gantt chart data to Excel
+  const exportToExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = tasks.map((task) => {
+        const dependencyNames =
+          task.dependencies
+            ?.map((depId) => {
+              const depTask = tasks.find((t) => t.id === depId)
+              return depTask ? depTask.name : "Unknown"
+            })
+            .join(", ") || ""
+
+        const resourceName = task.resourceId
+          ? resources.find((r) => r.id === task.resourceId)?.name || "Unknown"
+          : "Unassigned"
+
+        return {
+          "Task Name": task.name,
+          Owner: task.owner,
+          Size: task.size,
+          "Start Date": format(new Date(task.startDate), "yyyy-MM-dd"),
+          "Due Date": task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A",
+          Dependencies: dependencyNames || "None",
+          Resource: resourceName,
+          Cost: task.cost ? `$${task.cost}` : "$0",
+        }
+      })
+
+      // Convert to CSV
+      const headers = Object.keys(exportData[0])
+      let csvContent = headers.join(",") + "\n"
+
+      exportData.forEach((row) => {
+        const values = headers.map((header) => {
+          const value = row[header as keyof typeof row]
+          // Escape commas and quotes
+          const escaped = value.toString().replace(/"/g, '""')
+          return `"${escaped}"`
+        })
+        csvContent += values.join(",") + "\n"
+      })
+
+      // Create a blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+      const link = document.createElement("a")
+      const url = URL.createObjectURL(blob)
+
+      link.setAttribute("href", url)
+      link.setAttribute("download", `gantt_chart_export_${format(new Date(), "yyyy-MM-dd")}.csv`)
+      link.style.visibility = "hidden"
+
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error("Error exporting to Excel:", error)
+      alert("An error occurred while exporting data. Please try again.")
+    }
   }
 
   return (
@@ -171,6 +232,12 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
           >
             Month
           </button>
+          <button
+            className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-sm"
+            onClick={exportToExcel}
+          >
+            Export to Excel
+          </button>
         </div>
       </div>
 
@@ -179,7 +246,11 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
           <div className="w-[180px] font-medium">Task</div>
           <div className="flex-1 flex">
             {dateRange.map((date, index) => (
-              <div key={index} className={`flex-1 text-center text-sm ${index % 2 === 0 ? "bg-gray-50" : ""}`}>
+              <div
+                key={index}
+                className={`text-center text-sm ${index % 2 === 0 ? "bg-gray-50" : ""}`}
+                style={{ width: `${100 / dateRange.length}%` }}
+              >
                 {format(date, "d MMM")}
               </div>
             ))}
@@ -187,7 +258,7 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
         </div>
 
         <div className="mt-4 space-y-4">
-          {chartData.map((task) => {
+          {chartData.map((task, taskIndex) => {
             const position = getTaskPosition(task, dateRange)
             if (!position.visible) return null
 
@@ -202,7 +273,7 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
                     {task.resourceName ? `${task.resourceName.split(" ")[0]} (${task.size})` : task.size}
                   </div>
 
-                  {/* Dependency arrows - simplified to avoid SVG issues */}
+                  {/* Dependency arrows - with improved visibility */}
                   {task.dependencies?.map((depId) => {
                     const dependencyTask = chartData.find((t) => t.id === depId)
                     if (!dependencyTask) return null
@@ -210,17 +281,44 @@ export default function GanttChart({ tasks, resources }: GanttChartProps) {
                     const depPosition = getTaskPosition(dependencyTask, dateRange)
                     if (!depPosition.visible) return null
 
+                    // Calculate arrow points
+                    const depEndX = depPosition.endPos + 1
+                    const taskStartX = position.startPos
+
+                    // Only draw if dependency ends before or at the same time as task starts
+                    if (depEndX > taskStartX) return null
+
+                    // Calculate positions as percentages
+                    const depEndPercent = (depEndX / dateRange.length) * 100
+                    const taskStartPercent = (taskStartX / dateRange.length) * 100
+                    const arrowWidth = taskStartPercent - depEndPercent
+
                     return (
                       <div
                         key={`${depId}-${task.id}`}
-                        className="absolute border-t-2 border-dashed border-blue-500"
+                        className="absolute border-t-2 border-blue-500"
                         style={{
                           top: "50%",
-                          left: depPosition.left,
-                          width: `calc(${position.left} - ${depPosition.left})`,
-                          height: "1px",
+                          left: `${depEndPercent}%`,
+                          width: `${arrowWidth}%`,
+                          height: "0px",
+                          borderColor: "#3b82f6", // Ensure blue color
+                          borderStyle: "solid", // Make it solid instead of dashed for better visibility
+                          zIndex: 10, // Ensure it's above other elements
                         }}
-                      ></div>
+                      >
+                        {/* Arrow head */}
+                        <div
+                          className="absolute right-0 top-[-4px]"
+                          style={{
+                            width: 0,
+                            height: 0,
+                            borderTop: "4px solid transparent",
+                            borderBottom: "4px solid transparent",
+                            borderLeft: "6px solid #3b82f6", // blue-500
+                          }}
+                        />
+                      </div>
                     )
                   })}
                 </div>
